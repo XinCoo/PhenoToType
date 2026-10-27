@@ -1,0 +1,26 @@
+{
+  "name": "seed-phenotype-studio",
+  "version": "0.1.0",
+  "description": "植物籽粒表型测定与科研级论文图片生成工具",
+  "main": "electron/main.cjs",
+  "scripts": {
+    "start": "node electron/launch.cjs",
+    "test": "node test/unit/run.js && node test/e2e/e2e.js && node test/smoke/smoke.electron.cjs",
+    "dist": "node scripts/build-win.cjs --zip",
+    "test:unit": "node test/unit/run.js && node test/e2e/e2e.js",
+    "smoke": "node test/smoke/smoke.electron.cjs",
+    "icon": "node test/tools/make-icon.cjs",
+    "dist:dir": "node scripts/build-win.cjs"
+  },
+  "author": {
+    "name": "SeedPhenotype Studio"
+  },
+  "license": "MIT",
+  "devDependencies": {
+    "@electron/packager": "^18.4.4",
+    "7zip-bin": "^5.2.0",
+    "electron": "^33.2.0"
+  },
+  "type": "module",
+  "productName": "SeedPhenotype Studio"
+}

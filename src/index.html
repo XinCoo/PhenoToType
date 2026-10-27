@@ -1,0 +1,259 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; img-src 'self' data: file: blob:; style-src 'self' 'unsafe-inline'; script-src 'self'; connect-src 'self'">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SeedPhenotype Studio</title>
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<div id="app">
+  <header class="topbar">
+    <div class="brand">
+      <span class="logo"></span>
+      <div class="brand-text">
+        <h1>SeedPhenotype Studio</h1>
+        <p>植物籽粒表型测定 · 科研级论文图片生成</p>
+      </div>
+    </div>
+    <div class="topbar-actions">
+      <button class="btn btn-primary" id="btn-open">打开图像</button>
+      <button class="btn" id="btn-export-csv">导出数据</button>
+      <button class="btn" id="btn-export-fig">导出图片</button>
+      <button class="btn" id="btn-save-proj">保存项目</button>
+      <button class="btn" id="btn-load-proj">载入项目</button>
+    </div>
+  </header>
+
+  <main class="layout">
+    <!-- 左栏：批次与参数 -->
+    <aside class="sidebar">
+      <section class="panel">
+        <h2>图像批次</h2>
+        <div id="batch-list" class="batch-list">
+          <p class="empty-hint">尚未导入图像。点击「打开图像」批量导入单粒散落照。</p>
+        </div>
+      </section>
+
+      <section class="panel">
+        <h2>尺度标定</h2>
+        <div class="field">
+          <label>标定方式</label>
+          <select id="calib-mode">
+            <option value="none">不标定（像素单位）</option>
+            <option value="manual">手动输入标尺</option>
+            <option value="auto">自动识别图内标尺</option>
+          </select>
+        </div>
+        <div id="calib-manual" class="calib-manual hidden">
+          <div class="field-row">
+            <div class="field">
+              <label>标尺像素长度</label>
+              <input type="number" id="calib-px" value="100" min="1" step="1">
+            </div>
+            <div class="field">
+              <label>实际长度 (mm)</label>
+              <input type="number" id="calib-mm" value="10" min="0.001" step="0.1">
+            </div>
+          </div>
+          <p class="hint" id="calib-preview">—</p>
+        </div>
+        <div id="calib-auto" class="calib-auto hidden">
+          <p class="hint">点击图像中标尺的两端点，或使用「自动识别」。</p>
+          <button class="btn btn-sm" id="btn-detect-bar">自动识别标尺条</button>
+          <div id="calib-bars" class="bar-list"></div>
+        </div>
+      </section>
+
+      <section class="panel">
+        <h2>分割参数</h2>
+        <div class="field">
+          <label>最小面积（像素） <span class="val" id="v-minarea">40</span></label>
+          <input type="range" id="min-area" min="10" max="3000" step="10" value="40">
+        </div>
+        <div class="field">
+          <label>去噪强度 <span class="val" id="v-denoise">1</span></label>
+          <input type="range" id="denoise" min="0" max="3" step="1" value="1">
+        </div>
+        <div class="field">
+          <label>阈值偏移 <span class="val" id="v-thr">0</span></label>
+          <input type="range" id="thr-offset" min="-20" max="20" step="1" value="0">
+        </div>
+        <p class="hint">若漏检：降低阈值偏移；若误检台面/阴影：提高阈值偏移。</p>
+      </section>
+
+      <section class="panel">
+        <h2>绘图设置</h2>
+        <div class="field">
+          <label>配色方案</label>
+          <select id="palette">
+            <option value="nature">Nature</option>
+            <option value="lancet">Lancet</option>
+            <option value="science">Science</option>
+            <option value="wiley">Wiley（色盲友好）</option>
+            <option value="okabeIto">Okabe-Ito</option>
+            <option value="grayscale">灰度（黑白印刷）</option>
+          </select>
+        </div>
+        <div class="field-row">
+          <div class="field">
+            <label>图宽 (mm)</label>
+            <input type="number" id="fig-w" value="85" step="5" min="40">
+          </div>
+          <div class="field">
+            <label>图高 (mm)</label>
+            <input type="number" id="fig-h" value="65" step="5" min="40">
+          </div>
+        </div>
+        <div class="field">
+          <label>字号 (pt) <span class="val" id="v-fs">8</span></label>
+          <input type="range" id="font-size" min="5" max="14" step="0.5" value="8">
+        </div>
+        <div class="field">
+          <label>导出 DPI <span class="val" id="v-dpi">600</span></label>
+          <input type="range" id="dpi" min="150" max="1200" step="50" value="600">
+        </div>
+        <div class="field">
+          <label>显示误差棒</label>
+          <select id="err-type">
+            <option value="se">标准误 (SE)</option>
+            <option value="sd">标准差 (SD)</option>
+            <option value="ci">95% 置信区间 (CI)</option>
+          </select>
+        </div>
+        <div class="field">
+          <label>显著性标注</label>
+          <select id="sig-alpha">
+            <option value="0.05">p &lt; 0.05</option>
+            <option value="0.01">p &lt; 0.01</option>
+            <option value="0.001">p &lt; 0.001</option>
+          </select>
+        </div>
+        <div class="field">
+          <label>事后检验</label>
+          <select id="posthoc">
+            <option value="tukey">Tukey HSD（方差齐）</option>
+            <option value="games-howell">Games-Howell（方差不齐）</option>
+            <option value="welch">Welch t（不校正）</option>
+            <option value="auto">自动（Bartlett 择一）</option>
+          </select>
+        </div>
+      </section>
+    </aside>
+
+    <!-- 中栏：图像工作区 -->
+    <section class="workspace">
+      <div class="ws-tabs">
+        <button class="tab active" data-tab="image">图像与轮廓</button>
+        <button class="tab" data-tab="data">数据表</button>
+        <button class="tab" data-tab="stats">统计分析</button>
+        <button class="tab" data-tab="figures">图表输出</button>
+      </div>
+
+      <div class="ws-panel active" id="tab-image">
+        <div class="canvas-toolbar">
+          <div class="ct-group">
+            <label>显示</label>
+            <label class="chk"><input type="checkbox" id="show-mask" checked> 分割掩膜</label>
+            <label class="chk"><input type="checkbox" id="show-contour" checked> 轮廓</label>
+            <label class="chk"><input type="checkbox" id="show-index"> 编号</label>
+            <label class="chk"><input type="checkbox" id="show-scale"> 比例尺</label>
+          </div>
+          <div class="ct-group">
+            <span class="status" id="img-status">无图像</span>
+          </div>
+        </div>
+        <div class="canvas-wrap">
+          <canvas id="view-canvas"></canvas>
+          <div id="drop-hint" class="drop-hint">拖拽图像到此处，或点击「打开图像」</div>
+        </div>
+      </div>
+
+      <div class="ws-panel" id="tab-data">
+        <div class="table-toolbar">
+          <div class="ct-group">
+            <input type="text" id="table-search" placeholder="筛选分组/文件名…">
+            <span class="status" id="table-status"></span>
+          </div>
+          <div class="ct-group">
+            <label>当前批次分组</label>
+            <input type="text" id="batch-group" placeholder="如：WT / 处理组" value="品种A">
+          </div>
+        </div>
+        <div class="table-wrap"><table id="data-table"><thead></thead><tbody></tbody></table></div>
+      </div>
+
+      <div class="ws-panel" id="tab-stats">
+        <div class="stats-toolbar">
+          <div class="ct-group">
+            <label>分析指标</label>
+            <select id="stat-metric">
+              <option value="lengthPx">Length (px)</option>
+            </select>
+          </div>
+          <div class="ct-group">
+            <button class="btn btn-sm" id="btn-run-stats">运行统计</button>
+          </div>
+        </div>
+        <div class="stats-grid">
+          <div class="stats-table-wrap">
+            <h3>描述统计</h3>
+            <div class="table-wrap"><table id="desc-table"><thead></thead><tbody></tbody></table></div>
+          </div>
+          <div class="stats-table-wrap">
+            <h3>ANOVA 与两两比较</h3>
+            <div class="table-wrap"><table id="anova-table"><thead></thead><tbody></tbody></table></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="ws-panel" id="tab-figures">
+        <div class="fig-toolbar">
+          <div class="ct-group">
+            <label>图表类型</label>
+            <select id="fig-type">
+              <option value="bar">柱状图（均值±误差棒）</option>
+              <option value="box">箱线图</option>
+              <option value="violin">小提琴图</option>
+              <option value="scatter">散点 + 回归拟合</option>
+              <option value="hist">直方图 + 核密度</option>
+              <option value="corr">性状相关热图</option>
+              <option value="composite">多面板组合图</option>
+              <option value="contours">籽粒轮廓拼图</option>
+            </select>
+          </div>
+          <div class="ct-group">
+            <label>X 轴</label>
+            <select id="fig-x"></select>
+            <label>Y 轴</label>
+            <select id="fig-y"></select>
+          </div>
+          <div class="ct-group">
+            <label class="chk"><input type="checkbox" id="fig-points" checked> 叠加散点</label>
+            <label class="chk"><input type="checkbox" id="fig-grid" checked> 网格线</label>
+          </div>
+          <div class="ct-group">
+            <button class="btn btn-sm btn-primary" id="btn-render-fig">生成图表</button>
+            <button class="btn btn-sm" id="btn-svg">导出 SVG</button>
+            <button class="btn btn-sm" id="btn-png">导出 PNG/TIFF</button>
+          </div>
+        </div>
+        <div class="fig-preview">
+          <div class="fig-canvas-wrap"><canvas id="fig-canvas"></canvas></div>
+          <aside class="fig-side">
+            <h3>图注建议</h3>
+            <div id="fig-caption" class="caption-box"></div>
+            <h3>投稿规范检查</h3>
+            <ul id="fig-check" class="check-list"></ul>
+          </aside>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <div id="toast" class="toast"></div>
+</div>
+<script type="module" src="ui/app.js"></script>
+</body>
+</html>
